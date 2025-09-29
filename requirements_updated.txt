@@ -1,0 +1,40 @@
+# TorrentMonitor - Dependências Atualizadas
+# Versões compatíveis e seguras para 2024
+
+# Core torrent functionality
+libtorrent>=2.0.12
+
+# Telegram integration (updated API)
+telethon>=1.35.0
+
+# HTTP requests
+requests>=2.32.3
+
+# Async HTTP (if needed for future features)
+aiohttp>=3.9.0
+aiohappyeyeballs>=2.6.1
+aiosignal>=1.4.0
+async-timeout>=5.0.1
+
+# Data processing
+attrs>=25.3.0
+certifi>=2025.8.3
+charset-normalizer>=3.4.3
+frozenlist>=1.7.0
+idna>=3.10
+typing_extensions>=4.15.0
+urllib3>=2.5.0
+yarl>=1.20.1
+
+# Geolocation
+geoip2>=5.1.0
+maxminddb>=2.8.2
+
+# UI and formatting
+colorama>=0.4.6
+
+# Additional dependencies
+propcache>=0.3.2
+pyaes>=1.6.1
+pyasn1>=0.6.1
+rsa>=4.9.1

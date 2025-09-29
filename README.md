@@ -1,8 +1,31 @@
 # TorrentMonitor - Comprehensive BitTorrent Peer Tracking Tool
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
+[![Status: Updated](https://img.shields.io/badge/Status-Updated-green.svg)](https://github.com/N4rr34n6/Torrent-Monitor)
+
 TorrentMonitor is an advanced Python-based tool designed to revolutionize the way you track and monitor peers in BitTorrent networks. With real-time notifications, detailed peer information, and seamless integration with Telegram, this tool offers unparalleled insight into the activities within torrent swarms.
 
-Whether you're an internet researcher, a security analyst, or just interested in monitoring torrent activity, **TorrentMonitor** brings automation, accuracy, and convenience together in a single, powerful tool.
+**🆕 UPDATED VERSION** - This fork includes significant improvements and bug fixes over the original repository.
+
+## 🚀 What's New in This Version
+
+### ✅ **Major Improvements & Fixes**
+
+- **🔧 Fixed Database Paths**: Updated GeoLite2 database paths to use the new `dbs/` directory structure
+- **🛠️ Modernized Dependencies**: Updated library versions for better compatibility and security
+- **📊 Enhanced Data Storage**: Fixed database saving issues - data now saves in real-time
+- **🌍 Improved Geolocation**: Replaced deprecated `mmdbinspect` with native `geoip2` library
+- **⚡ Better Performance**: Optimized peer detection and data processing
+- **🔒 Enhanced Security**: Updated HTTP requests to use HTTPS where possible
+- **📝 Better Logging**: Improved error handling and debugging information
+
+### 🆕 **New Features**
+
+- **📁 Organized Database Structure**: All GeoLite2 databases now stored in `dbs/` directory
+- **🧪 Testing Suite**: Added comprehensive test scripts for geolocation and functionality
+- **🔄 In-Process Runner**: New `run_tracker_inproc.py` for easier testing and development
+- **📊 Real-time Data Saving**: Database and CSV files are updated continuously during monitoring
 
 ## Why TorrentMonitor?
 
@@ -78,16 +101,37 @@ Whether you're an internet researcher, a security analyst, or just interested in
    - Open `TorrentMonitor.py` and replace the placeholders for `api_id`, `api_hash`, `phone`, and `recipient` with your actual Telegram API credentials.
 
 5. **Download GeoIP Databases**:
-   - Download the `GeoLite2-City.mmdb` and `dbip-asn-lite.mmdb` files from their respective sources.
-   - **Important**: Place both files in the **same directory** as the TorrentMonitor script to ensure proper geolocation functionality.
+   - Download the `GeoLite2-City.mmdb` and `GeoLite2-ASN.mmdb` files from their respective sources.
+   - **Important**: Place both files in the `dbs/` directory with the following structure:
+     ```
+     dbs/
+     ├── GeoLite2-City_YYYYMMDD/
+     │   └── GeoLite2-City.mmdb
+     └── GeoLite2-ASN_YYYYMMDD/
+         └── GeoLite2-ASN.mmdb
+     ```
 
 ## Usage
 
+### Method 1: Direct Execution
 To start tracking torrents, provide a folder containing `.torrent` files. Use the following command to run TorrentMonitor:
 
 ```bash
 python3 TorrentMonitor.py -d TorrentsDir -o Test -g -T 150 -c Spain -db Test.db
 ```
+
+### Method 2: In-Process Runner (Recommended for Testing)
+For easier testing and development, use the included runner:
+
+```bash
+python3 run_tracker_inproc.py
+```
+
+The runner includes:
+- Automatic dependency checking
+- Telegram stub for testing without credentials
+- Configurable test duration
+- Verbose logging options
 
 ### Command-line Arguments
 
@@ -128,8 +172,27 @@ TorrentMonitor logs peer information into an SQLite database (`Monitor.db`) with
 - **torrent**: Torrent file name
 - **name**: Torrent name
 - **infohash**: Torrent infohash
-- **download_speed**: Peer’s download speed
-- **upload_speed**: Peer’s upload speed
+- **download_speed**: Peer's download speed
+- **upload_speed**: Peer's upload speed
+
+## Testing
+
+This version includes comprehensive testing tools:
+
+### Test Geolocation
+```bash
+python3 test_simple.py
+```
+
+### Test Full Functionality
+```bash
+python3 test_final.py
+```
+
+### Test with Runner
+```bash
+python3 run_tracker_inproc.py
+```
 
 ## Telegram Integration
 
@@ -147,16 +210,62 @@ TorrentMonitor is ideal for:
 - **DMCA Monitoring**: Tracking infringing downloads from specific regions.
 - **Torrent Site Admins**: Understanding user demographics and download patterns.
 
+## Troubleshooting
+
+### Common Issues
+
+1. **Database not saving data**: Ensure `output` parameter is set to a valid filename
+2. **Geolocation not working**: Verify GeoLite2 databases are in the `dbs/` directory
+3. **Telegram errors**: Check API credentials and network connectivity
+
+### Debug Mode
+Enable verbose logging for detailed debugging:
+```bash
+python3 TorrentMonitor.py -d torrents/ -v
+```
+
 ## Future Features
 
 - **Improved Analytics**: Enhanced data visualization and reporting tools.
 - **Cross-platform Support**: Ensure compatibility with more OS environments.
 - **Custom Alerts**: More granular conditions for triggering Telegram notifications.
+- **Modern Telethon Integration**: Update to latest Telegram API standards.
 
 ## Contributing
 
 We welcome contributions from the community! Feel free to open an issue or submit a pull request if you'd like to improve TorrentMonitor.
 
+### Development Setup
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## Changelog
+
+### Version 2.0 (Current)
+- ✅ Fixed database path issues
+- ✅ Updated dependencies
+- ✅ Improved geolocation handling
+- ✅ Added comprehensive testing
+- ✅ Enhanced error handling
+- ✅ Better documentation
+
+### Version 1.0 (Original)
+- Initial release from [N4rr34n6/Torrent-Monitor](https://github.com/N4rr34n6/Torrent-Monitor)
+
 ## License
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). See the [LICENSE](LICENSE) file for more details.
+
+## Acknowledgments
+
+- Original project by [N4rr34n6](https://github.com/N4rr34n6/Torrent-Monitor)
+- GeoLite2 databases by [MaxMind](https://www.maxmind.com/)
+- Python libtorrent bindings
+- Telegram API integration
+
+## Disclaimer
+
+This tool is for educational and research purposes only. Users are responsible for complying with all applicable laws and regulations in their jurisdiction. The authors are not responsible for any misuse of this software.

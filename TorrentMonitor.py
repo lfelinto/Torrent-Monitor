@@ -62,11 +62,13 @@ def send_notification(recipient, peer_dict):
     client.send_message(entity, message, parse_mode='html')
 
 class TorrentTracker:
-    def __init__(self, torrent_folder, output, geo, database):
+    def __init__(self, torrent_folder, output, geo, database, country=None, time_interval=30):
         self.torrent_folder = torrent_folder
         self.output = output
         self.geo = geo
         self.database = database
+        self.country = country
+        self.time_interval = time_interval
         self.user_agents = ['uTorrent 3.5.5', 'BitTorrent 7.10.5', 'qBittorrent 4.3.6', 
                             'Transmission 3.00', 'Deluge 2.0.4', 'Vuze 5.7.7']
         self.session_settings = {
@@ -98,7 +100,7 @@ class TorrentTracker:
         random_user_agent = random.choice(self.user_agents)
         self.session_settings['user_agent'] = random_user_agent
         self.session.apply_settings(self.session_settings) 
-        self.reader = geoip2.database.Reader('GeoLite2-City.mmdb')
+        self.reader = geoip2.database.Reader('dbs/GeoLite2-City_20250926/GeoLite2-City.mmdb')
         self.logger = logging.getLogger('TorrentTracker') 
         self.logger.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(message)s')
@@ -118,8 +120,7 @@ class TorrentTracker:
             self.session_settings['user_agent'] = random_user_agent
             self.session.apply_settings(self.session_settings) 
             handle = self.session.add_torrent({'ti': lt.torrent_info(torrent_path), 
-                                               'save_path': 'Downloads', 
-                                               'user_agent': random_user_agent})
+                                               'save_path': 'Downloads'})
             return handle
         except Exception as e:
             self.logger.error(f"Error creating torrent handler for {torrent_path}: {e}")
@@ -128,23 +129,43 @@ class TorrentTracker:
         """
         Get geographical information for an IP address.
         """
-        cmd = f"./mmdbinspect -db GeoLite2-City.mmdb {ip}"
-        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-        json_output = json.loads(result.stdout.decode('utf-8'))
-        return json_output[0]['Records'][0]['Record']
+        try:
+            response = self.reader.city(ip)
+            return {
+                'country': {
+                    'names': {'en': response.country.name},
+                    'iso_code': response.country.iso_code
+                },
+                'city': {
+                    'names': {'en': response.city.name}
+                },
+                'subdivisions': [
+                    {
+                        'names': {'en': subdivision.name}
+                    } for subdivision in response.subdivisions
+                ]
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting geo info for {ip}: {e}")
+            return None
 
     def get_isp_info(self, ip):
         """
         Get ISP information for an IP address.
         """
-        cmd = f"./mmdbinspect -db dbip-asn-lite.mmdb {ip}"
-        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-        json_output = json.loads(result.stdout.decode('utf-8'))
         try:
-            isp_info = json_output[0]['Records'][0]['Record']
-        except TypeError:
-            isp_info = 'N/A'
-        return isp_info
+            # Criar um leitor para a base ASN
+            asn_reader = geoip2.database.Reader('dbs/GeoLite2-ASN_20250929/GeoLite2-ASN.mmdb')
+            response = asn_reader.asn(ip)
+            asn_reader.close()
+            
+            return {
+                'autonomous_system_organization': response.autonomous_system_organization,
+                'autonomous_system_number': response.autonomous_system_number
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting ISP info for {ip}: {e}")
+            return 'N/A'
 
     def format_time(self, timestamp):
         """
@@ -255,10 +276,11 @@ class TorrentTracker:
 
         seen_times = {}
 
-        cur.execute("SELECT ip, port, infohash, first_seen FROM report_table")
-        for row in cur.fetchall():
-            ip, port, infohash, first_seen = row
-            seen_times[(ip, port, infohash)] = {'first_seen': first_seen, 'last_seen': first_seen}
+        if self.output:
+            cur.execute("SELECT ip, port, infohash, first_seen FROM report_table")
+            for row in cur.fetchall():
+                ip, port, infohash, first_seen = row
+                seen_times[(ip, port, infohash)] = {'first_seen': first_seen, 'last_seen': first_seen}
 
         response = requests.get('http://ifconfig.me') 
         if response.status_code == 200: 
@@ -273,8 +295,9 @@ class TorrentTracker:
                 result = subprocess.run(['transmission-show', os.path.join(self.torrent_folder, f)], capture_output=True) 
                 details = result.stdout.decode('utf-8') 
                 infohash = lt.torrent_info(os.path.join(self.torrent_folder, f)).info_hash() 
-                cur.execute("INSERT OR IGNORE INTO info_torrent (torrent_infohash, details) VALUES (?, ?)", (str(infohash), details)) 
-                conn.commit() 
+                if self.output:
+                    cur.execute("INSERT OR IGNORE INTO info_torrent (torrent_infohash, details) VALUES (?, ?)", (str(infohash), details)) 
+                    conn.commit() 
             except Exception as e:
                 self.logger.error(f"Unable to obtain details of torrent file {f}: {e}")
 
@@ -320,10 +343,13 @@ class TorrentTracker:
                             
                             infohash = handle.info_hash()
 
-                            cur.execute("SELECT max(first_seen) FROM report_table WHERE ip = ? AND port = ? AND infohash = ?", (ip, port, str(infohash))) 
-                            result = cur.fetchone()
-                            if result and result[0]: 
-                                first_seen = result[0] 
+                            if self.output:
+                                cur.execute("SELECT max(first_seen) FROM report_table WHERE ip = ? AND port = ? AND infohash = ?", (ip, port, str(infohash))) 
+                                result = cur.fetchone()
+                                if result and result[0]: 
+                                    first_seen = result[0] 
+                                else:
+                                    first_seen = today
                             else:
                                 first_seen = today 
                             try:
@@ -367,7 +393,7 @@ class TorrentTracker:
 
                             isp_info = self.get_isp_info(ip)
                             if isinstance(isp_info, dict):
-                                isp = isp_info['autonomous_system_organization']
+                                isp = isp_info.get('autonomous_system_organization', 'N/A')
                             else:
                                 isp = isp_info
 
@@ -429,7 +455,7 @@ class TorrentTracker:
                                 peer_dict['first_seen'] = today
                                 peer_dict['last_seen'] = today
 
-                            if country == args.country:
+                            if self.country and country == self.country:
                                 peer_tuple = (ip, port, client, infohash, first_seen)
                                 if peer_tuple not in notified_peers:
                                     with open('notified_peers.txt', 'r') as f:
@@ -455,7 +481,7 @@ class TorrentTracker:
                                             with open('notified_peers.txt', 'a') as f:
                                                 f.write(','.join(str(x) for x in peer_tuple) + '\n')
 
-                            if args.country is None or country == args.country:
+                            if self.country is None or country == self.country:
                                 if self.output:
                                     with open(f"{self.output}.csv", 'a+', newline='') as f:
                                         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -468,7 +494,7 @@ class TorrentTracker:
                                 else:
                                     self.logger.info(Fore.GREEN + f"New data inserted for peer {Fore.BLUE + ip + Fore.GREEN} and torrent {torrent_name}. The peer is in the province of {Fore.BLUE + province + Fore.GREEN} and has downloaded {downloaded_pieces} out of {num_pieces} pieces. The download speed is {download_speed} bytes per second and the estimated time to complete the download is {estimated_time_string}." + Style.RESET_ALL)
 
-                time.sleep(int(args.time))
+                time.sleep(self.time_interval)
                 
         except KeyboardInterrupt:
             self.logger.info("\nCleaning up")
