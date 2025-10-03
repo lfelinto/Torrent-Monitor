@@ -13,7 +13,7 @@ import logging
 import random
 from colorama import Fore, Style, init
 import requests
-import sqlite3 
+import pymysql
 import shutil
 from telethon.sync import TelegramClient
 import telethon
@@ -62,13 +62,20 @@ def send_notification(recipient, peer_dict):
     client.send_message(entity, message, parse_mode='html')
 
 class TorrentTracker:
-    def __init__(self, torrent_folder, output, geo, database, country=None, time_interval=30):
+    def __init__(self, torrent_folder, output, geo, database, country=None, time_interval=30, 
+                 db_host='localhost', db_port=3306, db_user='root', db_password='', db_name='torrent_monitor'):
         self.torrent_folder = torrent_folder
         self.output = output
         self.geo = geo
         self.database = database
         self.country = country
         self.time_interval = time_interval
+        # Configurações do MariaDB
+        self.db_host = db_host
+        self.db_port = db_port
+        self.db_user = db_user
+        self.db_password = db_password
+        self.db_name = db_name
         self.user_agents = ['uTorrent 3.5.5', 'BitTorrent 7.10.5', 'qBittorrent 4.3.6', 
                             'Transmission 3.00', 'Deluge 2.0.4', 'Vuze 5.7.7']
         self.session_settings = {
@@ -226,6 +233,7 @@ class TorrentTracker:
             except Exception as e:
                 self.logger.error(f"The torrent file {f} is not valid or cannot be added to the session: {e}")
 
+        self.handles = handles  # Expor handles para acesso externo
         self.logger.info(f'Starting to track {len(handles)} torrents') 
         
         if self.output:
@@ -240,24 +248,33 @@ class TorrentTracker:
             else:
                 f = open(f"{self.output}.csv", 'a+', newline='') 
             
-            conn = sqlite3.connect(self.database)
+            # Conectar ao MariaDB
+            conn = pymysql.connect(
+                host=self.db_host,
+                port=self.db_port,
+                user=self.db_user,
+                password=self.db_password,
+                database=self.db_name,
+                charset='utf8mb4',
+                cursorclass=pymysql.cursors.DictCursor
+            )
             cur = conn.cursor() 
             cur.execute("""CREATE TABLE IF NOT EXISTS report_table (
-                ip TEXT,
+                ip VARCHAR(50),
                 port INTEGER,
                 isp TEXT,
-                client TEXT,
-                countryISO TEXT,
-                country TEXT,
-                city TEXT,
-                region TEXT,
-                province TEXT,
-                first_seen TEXT,
-                last_seen TEXT,
-                torrent TEXT,
+                client VARCHAR(255),
+                countryISO VARCHAR(10),
+                country VARCHAR(100),
+                city VARCHAR(100),
+                region VARCHAR(100),
+                province VARCHAR(100),
+                first_seen VARCHAR(50),
+                last_seen VARCHAR(50),
+                torrent VARCHAR(255),
                 name TEXT,
-                infohash TEXT,
-                total_size INTEGER,
+                infohash VARCHAR(100),
+                total_size BIGINT,
                 num_pieces INTEGER,
                 piece_size INTEGER,
                 downloaded_pieces INTEGER,
@@ -265,11 +282,11 @@ class TorrentTracker:
                 upload_speed INTEGER,
                 num_seeds INTEGER,
                 num_peers INTEGER,
-                estimated_time TEXT,
-                state TEXT
+                estimated_time VARCHAR(50),
+                state VARCHAR(50)
             )""")
             cur.execute("""CREATE TABLE IF NOT EXISTS info_torrent (
-                torrent_infohash TEXT PRIMARY KEY,
+                torrent_infohash VARCHAR(100) PRIMARY KEY,
                 details TEXT
             )""")
             conn.commit() 
@@ -279,7 +296,10 @@ class TorrentTracker:
         if self.output:
             cur.execute("SELECT ip, port, infohash, first_seen FROM report_table")
             for row in cur.fetchall():
-                ip, port, infohash, first_seen = row
+                ip = row['ip']
+                port = row['port']
+                infohash = row['infohash']
+                first_seen = row['first_seen']
                 seen_times[(ip, port, infohash)] = {'first_seen': first_seen, 'last_seen': first_seen}
 
         response = requests.get('http://ifconfig.me') 
@@ -296,7 +316,7 @@ class TorrentTracker:
                 details = result.stdout.decode('utf-8') 
                 infohash = lt.torrent_info(os.path.join(self.torrent_folder, f)).info_hash() 
                 if self.output:
-                    cur.execute("INSERT OR IGNORE INTO info_torrent (torrent_infohash, details) VALUES (?, ?)", (str(infohash), details)) 
+                    cur.execute("INSERT IGNORE INTO info_torrent (torrent_infohash, details) VALUES (%s, %s)", (str(infohash), details)) 
                     conn.commit() 
             except Exception as e:
                 self.logger.error(f"Unable to obtain details of torrent file {f}: {e}")
@@ -344,10 +364,10 @@ class TorrentTracker:
                             infohash = handle.info_hash()
 
                             if self.output:
-                                cur.execute("SELECT max(first_seen) FROM report_table WHERE ip = ? AND port = ? AND infohash = ?", (ip, port, str(infohash))) 
+                                cur.execute("SELECT max(first_seen) as max_first_seen FROM report_table WHERE ip = %s AND port = %s AND infohash = %s", (ip, port, str(infohash))) 
                                 result = cur.fetchone()
-                                if result and result[0]: 
-                                    first_seen = result[0] 
+                                if result and result['max_first_seen']: 
+                                    first_seen = result['max_first_seen'] 
                                 else:
                                     first_seen = today
                             else:
@@ -486,7 +506,7 @@ class TorrentTracker:
                                     with open(f"{self.output}.csv", 'a+', newline='') as f:
                                         writer = csv.DictWriter(f, fieldnames=fieldnames)
                                         writer.writerow(peer_dict)
-                                    cur.execute("INSERT INTO report_table VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", list(peer_dict.values())) 
+                                    cur.execute("INSERT INTO report_table VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", list(peer_dict.values())) 
                                     conn.commit() 
 
                                 if downloaded_pieces == -1:

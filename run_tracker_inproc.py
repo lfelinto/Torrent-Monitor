@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # run_tracker_inproc.py
-# Runner in-process para testar TorrentMonitor.py (geo OBRIGATÓRIA, sem CSV/DB)
+# In-process runner to test TorrentMonitor.py (geo MANDATORY, without CSV/DB)
 
 import os
 import sys
@@ -12,17 +12,17 @@ from datetime import datetime
 import importlib.util
 
 # =========================
-# 🔧 CONFIGURAÇÕES DO TESTE
+# 🔧 TEST CONFIGURATIONS
 # =========================
-TORRENT_DIR = Path("/home/usuario/.config/transmission/torrents/")  # pasta dos .torrent
-POLL_TIME_SECONDS = 10        # intervalo de coleta (segundos)
-DURATION = 120                # tempo total de execução; depois envia SIGINT
-COUNTRY_FILTER = None         # ex.: "BR" para filtrar/avisar; None = todos
-FORCE_VERBOSE = True          # força logs DEBUG no monitor
-USE_TELEGRAM_STUB = True      # ignora login real e apenas "printa" mensagens
+TORRENT_DIR = Path("/home/usuario/.config/transmission/torrents/")  # .torrent folder
+POLL_TIME_SECONDS = 10        # collection interval (seconds)
+DURATION = 120                # total execution time; then sends SIGINT
+COUNTRY_FILTER = None         # ex.: "BR" to filter/alert; None = all
+FORCE_VERBOSE = True          # force DEBUG logs in monitor
+USE_TELEGRAM_STUB = True      # ignore real login and just "print" messages
 
 # =========================
-# 🧪 STUB OPCIONAL DO TELETHON (para testar sem credenciais)
+# 🧪 OPTIONAL TELETHON STUB (to test without credentials)
 # =========================
 def _install_telethon_stub():
     import types
@@ -70,83 +70,89 @@ if USE_TELEGRAM_STUB:
     _install_telethon_stub()
 
 # =========================
-# 🧰 PRÉ-CHECKS BÁSICOS
+# 🧰 BASIC PRE-CHECKS
 # =========================
 CWD = Path.cwd()
 MAIN_PATH = CWD / "TorrentMonitor.py"
 if not MAIN_PATH.exists():
-    print(f"[ERRO] {MAIN_PATH} não encontrado (salve seu código como 'TorrentMonitor.py' ao lado deste runner).")
+    print(f"[ERROR] {MAIN_PATH} not found (save your code as 'TorrentMonitor.py' next to this runner).")
     sys.exit(1)
 
 if not TORRENT_DIR.is_dir():
-    print(f"[ERRO] Diretório de torrents inexistente: {TORRENT_DIR}")
+    print(f"[ERROR] Torrent directory does not exist: {TORRENT_DIR}")
     sys.exit(1)
 
 if not any(TORRENT_DIR.glob("*.torrent")):
-    print(f"[ERRO] Nenhum arquivo .torrent em {TORRENT_DIR}")
+    print(f"[ERROR] No .torrent files in {TORRENT_DIR}")
     sys.exit(1)
 
-# Geo é OBRIGATÓRIO no monitor lean: valide cedo para erro mais amigável
+# Geo is MANDATORY in lean monitor: validate early for more friendly error
 city_mmdb = CWD / "dbs" / "GeoLite2-City_20250926" / "GeoLite2-City.mmdb"
 asn_mmdb = CWD / "dbs" / "GeoLite2-ASN_20250929" / "GeoLite2-ASN.mmdb"
 missing = [p for p in [city_mmdb, asn_mmdb] if not p.exists()]
 if missing:
-    print("[ERRO] Bases Geo obrigatórias não encontradas na pasta dbs/.")
-    print("       Verifique se os arquivos estão em:")
+    print("[ERROR] Required Geo databases not found in dbs/ folder.")
+    print("       Check if files are in:")
     print("       - dbs/GeoLite2-City_20250926/GeoLite2-City.mmdb")
     print("       - dbs/GeoLite2-ASN_20250929/GeoLite2-ASN.mmdb")
     for m in missing:
-        print(f"       - ausente: {m}")
+        print(f"       - missing: {m}")
     sys.exit(1)
 else:
-    print("[Runner] GeoIP: MMDBs detectados -> geolocalização ATIVADA")
+    print("[Runner] GeoIP: MMDBs detected -> geolocation ENABLED")
 
-# Avisos de dependências (best-effort)
-for mod in ("libtorrent", "geoip2", "colorama", "requests", "telethon", "sqlite3"):
+# Dependency warnings (best-effort)
+for mod in ("libtorrent", "geoip2", "colorama", "requests", "telethon", "pymysql"):
     try:
         __import__(mod)
     except Exception:
-        print(f"[AVISO] Dependência Python ausente: {mod}  (instale com: python -m pip install {mod})")
+        print(f"[WARNING] Missing Python dependency: {mod}  (install with: python -m pip install {mod})")
 
 # =========================
-# 📥 IMPORT DINÂMICO DO SEU MÓDULO
+# 📥 DYNAMIC IMPORT OF YOUR MODULE
 # =========================
 spec = importlib.util.spec_from_file_location("torrent_monitor_module", str(MAIN_PATH))
 tm = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(tm)  # executa top-level do TorrentMonitor.py
+spec.loader.exec_module(tm)  # execute top-level of TorrentMonitor.py
 
 if not hasattr(tm, "TorrentTracker"):
-    print("[ERRO] O módulo não expôs a classe 'TorrentTracker'.")
+    print("[ERROR] Module did not expose 'TorrentTracker' class.")
     sys.exit(1)
 
 # =========================
-# 🧵 TIMER PARA FINALIZAR GRACIOSAMENTE
+# 🧵 TIMER FOR GRACEFUL FINISH
 # =========================
 def _graceful_stop_after(duration: int):
     time.sleep(duration)
-    print("\n[Runner] Tempo de teste atingido. Enviando SIGINT para finalizar graciosamente...")
+    print("\n[Runner] Test time reached. Sending SIGINT to finish gracefully...")
     os.kill(os.getpid(), signal.SIGINT)
 
 stopper = None
 if DURATION and DURATION > 0:
     stopper = threading.Thread(target=_graceful_stop_after, args=(DURATION,), daemon=True)
     stopper.start()
-    print(f"[Runner] Executando por ~{DURATION}s; pressione CTRL+C para encerrar antes.")
+    print(f"[Runner] Running for ~{DURATION}s; press CTRL+C to stop early.")
 
 # =========================
-# ▶️ EXECUÇÃO IN-PROCESS
+# ▶️ IN-PROCESS EXECUTION
 # =========================
-# Instancia e roda o monitor (sem CSV/DB). COUNTRY_FILTER=None => todos os países.
+# Instantiate and run the monitor (with CSV/DB). COUNTRY_FILTER=None => all countries.
 monitor = tm.TorrentTracker(
     torrent_folder=str(TORRENT_DIR),
-    output="monitor_output",  # Com CSV
-    geo=True,      # Geolocalização ativada
-    database="Monitor_test.db",  # Database de teste
-    country=COUNTRY_FILTER,  # Filtro de país
-    time_interval=POLL_TIME_SECONDS  # Intervalo de tempo
+    output="monitor_output",  # With CSV
+    geo=True,      # Geolocation enabled
+    database="Monitor_test.db",  # Legacy parameter (not used with MariaDB)
+    country=COUNTRY_FILTER,  # Country filter
+    time_interval=POLL_TIME_SECONDS,  # Time interval
+    # Configurações do MariaDB
+    db_host='192.168.10.52',
+    db_port=3306,
+    db_user='admin',
+    db_password='Jw%tD7@8P1',
+    db_name='torrent_monitor'
 )
 
-# Força verbosidade alta se desejado
+# Force high verbosity if desired
 if FORCE_VERBOSE and hasattr(monitor, "logger"):
     import logging
     monitor.logger.setLevel(logging.DEBUG)
@@ -154,4 +160,10 @@ if FORCE_VERBOSE and hasattr(monitor, "logger"):
 try:
     monitor.main()
 except KeyboardInterrupt:
-    print("[Runner] Encerrado pelo usuário/tempo (KeyboardInterrupt).")
+    print("[Runner] Stopped by user/time (KeyboardInterrupt).")
+except Exception as e:
+    print(f"[Runner] Unexpected error: {e}")
+    import traceback
+    traceback.print_exc()
+
+print("[Runner] Finished.")

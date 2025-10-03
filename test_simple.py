@@ -1,31 +1,31 @@
 #!/usr/bin/env python3
 """
-Teste simples para verificar apenas as funcionalidades de geolocalização.
+Simple test to verify only geolocation functionalities.
 """
 
 import geoip2.database
 import os
 
 def test_geolocation_only():
-    """Testa apenas as funcionalidades de geolocalização."""
-    print("🚀 Testando funcionalidades de geolocalização...")
+    """Test only geolocation functionalities."""
+    print("🚀 Testing geolocation functionalities...")
     
-    # Verificar se os arquivos existem
+    # Check if files exist
     city_path = 'dbs/GeoLite2-City_20250926/GeoLite2-City.mmdb'
     asn_path = 'dbs/GeoLite2-ASN_20250929/GeoLite2-ASN.mmdb'
     
     if not os.path.exists(city_path):
-        print(f"❌ Arquivo não encontrado: {city_path}")
+        print(f"❌ File not found: {city_path}")
         return False
     
     if not os.path.exists(asn_path):
-        print(f"❌ Arquivo não encontrado: {asn_path}")
+        print(f"❌ File not found: {asn_path}")
         return False
     
-    print("✅ Arquivos de base de dados encontrados!")
+    print("✅ Database files found!")
     
-    # Testar GeoLite2-City
-    print("\n🔍 Testando GeoLite2-City...")
+    # Test GeoLite2-City
+    print("\n🔍 Testing GeoLite2-City...")
     try:
         reader = geoip2.database.Reader(city_path)
         
@@ -38,17 +38,17 @@ def test_geolocation_only():
                 city = response.city.name or 'N/A'
                 print(f"  ✅ {ip}: {country} - {city}")
             except Exception as e:
-                print(f"  ❌ {ip}: Erro - {e}")
+                print(f"  ❌ {ip}: Error - {e}")
         
         reader.close()
-        print("✅ GeoLite2-City funcionando!")
+        print("✅ GeoLite2-City working!")
         
     except Exception as e:
-        print(f"❌ Erro ao testar GeoLite2-City: {e}")
+        print(f"❌ Error testing GeoLite2-City: {e}")
         return False
     
-    # Testar GeoLite2-ASN
-    print("\n🔍 Testando GeoLite2-ASN...")
+    # Test GeoLite2-ASN
+    print("\n🔍 Testing GeoLite2-ASN...")
     try:
         reader = geoip2.database.Reader(asn_path)
         
@@ -59,22 +59,22 @@ def test_geolocation_only():
                 asn = response.autonomous_system_number or 'N/A'
                 print(f"  ✅ {ip}: {org} (AS{asn})")
             except Exception as e:
-                print(f"  ❌ {ip}: Erro - {e}")
+                print(f"  ❌ {ip}: Error - {e}")
         
         reader.close()
-        print("✅ GeoLite2-ASN funcionando!")
+        print("✅ GeoLite2-ASN working!")
         
     except Exception as e:
-        print(f"❌ Erro ao testar GeoLite2-ASN: {e}")
+        print(f"❌ Error testing GeoLite2-ASN: {e}")
         return False
     
     return True
 
 def test_updated_functions():
-    """Testa as funções atualizadas do TorrentMonitor."""
-    print("\n🔍 Testando funções atualizadas...")
+    """Test updated TorrentMonitor functions."""
+    print("\n🔍 Testing updated functions...")
     
-    # Simular as funções get_geo_info e get_isp_info
+    # Simulate get_geo_info and get_isp_info functions
     def get_geo_info(ip):
         try:
             reader = geoip2.database.Reader('dbs/GeoLite2-City_20250926/GeoLite2-City.mmdb')
@@ -96,7 +96,7 @@ def test_updated_functions():
                 ]
             }
         except Exception as e:
-            print(f"Erro na geolocalização para {ip}: {e}")
+            print(f"Geolocation error for {ip}: {e}")
             return None
     
     def get_isp_info(ip):
@@ -110,7 +110,7 @@ def test_updated_functions():
                 'autonomous_system_number': response.autonomous_system_number
             }
         except Exception as e:
-            print(f"Erro na informação do ISP para {ip}: {e}")
+            print(f"ISP information error for {ip}: {e}")
             return 'N/A'
     
     # Testar as funções
@@ -119,14 +119,14 @@ def test_updated_functions():
     for ip in test_ips:
         print(f"\n📡 Testando IP: {ip}")
         
-        # Testar geolocalização
+        # Test geolocation
         geo_info = get_geo_info(ip)
         if geo_info:
             country = geo_info.get('country', {}).get('names', {}).get('en', 'N/A')
             city = geo_info.get('city', {}).get('names', {}).get('en', 'N/A')
             print(f"  📍 País: {country}, Cidade: {city}")
         else:
-            print(f"  ❌ Erro na geolocalização")
+            print(f"  ❌ Geolocation error")
         
         # Testar informação do ISP
         isp_info = get_isp_info(ip)
@@ -135,25 +135,25 @@ def test_updated_functions():
             asn = isp_info.get('autonomous_system_number', 'N/A')
             print(f"  🏢 ISP: {org} (AS{asn})")
         else:
-            print(f"  ❌ Erro na informação do ISP")
+            print(f"  ❌ ISP information error")
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("🧪 TESTE SIMPLES DAS FUNCIONALIDADES DE GEOLOCALIZAÇÃO")
+    print("🧪 SIMPLE TEST OF GEOLOCATION FUNCTIONALITIES")
     print("=" * 60)
     
-    # Teste básico
+    # Basic test
     basic_ok = test_geolocation_only()
     
     if basic_ok:
-        # Teste das funções atualizadas
+        # Test of updated functions
         test_updated_functions()
         
         print("\n" + "=" * 60)
-        print("🎉 TODOS OS TESTES PASSARAM!")
-        print("✅ As bases de dados GeoLite2 estão funcionando corretamente!")
-        print("✅ As funções de geolocalização foram atualizadas com sucesso!")
-        print("✅ O código agora usa apenas a biblioteca geoip2 (sem mmdbinspect)!")
+        print("🎉 ALL TESTS PASSED!")
+        print("✅ GeoLite2 databases are working correctly!")
+        print("✅ Geolocation functions were updated successfully!")
+        print("✅ Code now uses only geoip2 library (without mmdbinspect)!")
     else:
-        print("\n❌ ALGUNS TESTES FALHARAM!")
-        print("⚠️  Verifique os erros acima.")
+        print("\n❌ SOME TESTS FAILED!")
+        print("⚠️  Check the errors above.")
