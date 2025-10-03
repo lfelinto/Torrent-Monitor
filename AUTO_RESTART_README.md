@@ -1,69 +1,69 @@
 # 🔄 Auto-Restart Runner - TorrentMonitor
 
-## 📋 Descrição
+## 📋 Description
 
-Script que mantém o TorrentMonitor em execução contínua **sem completar os downloads**. Quando um torrent atinge um limite de progresso configurável (padrão: 90%), os arquivos são automaticamente apagados e o download reinicia do zero.
+Script that keeps TorrentMonitor running continuously **without completing downloads**. When a torrent reaches a configurable progress threshold (default: 90%), files are automatically deleted and the download restarts from zero.
 
-Isso é útil para:
-- ✅ Manter o monitoramento de peers ativo por tempo indefinido
-- ✅ Não ocupar espaço em disco com downloads completos
-- ✅ Simular comportamento de um peer que está sempre baixando
-- ✅ Evitar completar downloads durante testes de monitoramento
+This is useful for:
+- ✅ Keeping peer monitoring active indefinitely
+- ✅ Not filling disk space with completed downloads
+- ✅ Simulating behavior of a peer that's always downloading
+- ✅ Avoiding download completion during monitoring tests
 
-## 🚀 Como Usar
+## 🚀 How to Use
 
-### Execução Básica
+### Basic Execution
 
 ```bash
 python3 run_tracker_autorestart.py
 ```
 
-### Execução em Background
+### Background Execution
 
 ```bash
 nohup python3 run_tracker_autorestart.py > autorestart.log 2>&1 &
 ```
 
-## ⚙️ Configurações Disponíveis
+## ⚙️ Available Configuration
 
-Edite o arquivo `run_tracker_autorestart.py` no topo para ajustar:
+Edit the `run_tracker_autorestart.py` file at the top to adjust:
 
-### Configurações Principais
+### Main Settings
 
 ```python
-# Caminho dos arquivos .torrent
+# Path to .torrent files
 TORRENT_DIR = Path("/home/usuario/.config/transmission/torrents/")
 
-# Intervalo de coleta de dados de peers (segundos)
+# Peer data collection interval (seconds)
 POLL_TIME_SECONDS = 10
 
-# Tempo total de execução (0 = infinito)
-DURATION = 3600  # 1 hora
+# Total execution time (0 = infinite)
+DURATION = 3600  # 1 hour
 
-# Filtro de país (None = todos)
-COUNTRY_FILTER = None  # ou "Spain", "Brazil", etc.
+# Country filter (None = all)
+COUNTRY_FILTER = None  # or "Spain", "Brazil", etc.
 
-# Logs detalhados
+# Detailed logs
 FORCE_VERBOSE = True
 ```
 
-### Configurações de Auto-Restart
+### Auto-Restart Settings
 
 ```python
-# Limite de progresso para reiniciar (0.0 a 1.0)
+# Progress threshold to restart (0.0 to 1.0)
 PROGRESS_THRESHOLD = 0.90  # 90%
 
-# Intervalo para verificar progresso (segundos)
+# Interval to check progress (seconds)
 CHECK_INTERVAL = 30
 
-# Velocidade mínima para considerar download ativo (bytes/s)
+# Minimum speed to consider download active (bytes/s)
 MIN_DOWNLOAD_SPEED = 1000  # 1 KB/s
 
-# Pasta onde os downloads são salvos
+# Folder where downloads are saved
 DOWNLOADS_PATH = Path.cwd() / "Downloads"
 ```
 
-### Configurações do MariaDB
+### MariaDB Configuration
 
 ```python
 db_host='192.168.10.52'
@@ -73,177 +73,176 @@ db_password='Jw%tD7@8P1'
 db_name='torrent_monitor'
 ```
 
-## 📊 O Que o Script Faz
+## 📊 What the Script Does
 
-### 1. Monitoramento Contínuo
-- Coleta dados de peers a cada `POLL_TIME_SECONDS`
-- Registra IPs, ISPs, geolocalização, clientes BitTorrent
-- Salva em MariaDB e arquivo CSV
+### 1. Continuous Monitoring
+- Collects peer data every `POLL_TIME_SECONDS`
+- Records IPs, ISPs, geolocation, BitTorrent clients
+- Saves to MariaDB and CSV file
 
-### 2. Verificação de Progresso
-- A cada `CHECK_INTERVAL` segundos, verifica o progresso de cada torrent
-- Mostra estatísticas:
-  - Progresso atual (%)
-  - Velocidade de download (KB/s)
-  - Tamanho atual em disco (MB)
-  - Número de seeds e peers
+### 2. Progress Checking
+- Every `CHECK_INTERVAL` seconds, checks progress of each torrent
+- Shows statistics:
+  - Current progress (%)
+  - Download speed (KB/s)
+  - Current disk size (MB)
+  - Number of seeds and peers
 
-### 3. Auto-Restart Inteligente
-Quando detecta que um torrent atingiu o limite:
-- ⚠️ Pausa o torrent
-- 🗑️ Apaga todos os arquivos da pasta `Downloads`
-- 🔄 Retoma o torrent (reinicia do zero)
-- ✅ Continua monitorando
+### 3. Intelligent Auto-Restart
+When it detects a torrent has reached the threshold:
+- ⚠️ Pauses the torrent
+- 🗑️ Deletes all files from `Downloads` folder
+- 🔄 Resumes the torrent (restarts from zero)
+- ✅ Continues monitoring
 
-### 4. Verificação de Download Ativo
-Só reinicia se detectar que realmente está baixando:
-- Velocidade de download > `MIN_DOWNLOAD_SPEED`
-- OU tamanho da pasta aumentando
+### 4. Active Download Verification
+Only restarts if it detects actual downloading:
+- Download speed > `MIN_DOWNLOAD_SPEED`
+- OR folder size increasing
 
-Isso evita reiniciar torrents que estão parados (sem seeds).
+This prevents restarting torrents that are stopped (no seeds).
 
-## 📈 Saída do Script
+## 📈 Script Output
 
-### Logs Principais
-
-```
-[Runner] GeoIP: MMDBs detectados -> geolocalização ATIVADA
-[Runner] 🚀 Iniciando TorrentMonitor com Auto-Restart
-[Runner]    Pasta de torrents: /home/usuario/.config/transmission/torrents
-[Runner]    Pasta de downloads: /home/usuario/Desktop/cursor/Torrent-Monitor/Downloads
-[Runner]    Intervalo de coleta: 10s
-
-[AutoRestart] 🔍 Monitor de progresso iniciado
-[AutoRestart]    Limite de progresso: 90.0%
-[AutoRestart]    Velocidade mínima: 1000 bytes/s
-[AutoRestart]    Intervalo de verificação: 30s
-```
-
-### Durante o Monitoramento
+### Main Logs
 
 ```
-[AutoRestart] 📊 Status do torrent: ubuntu-22.04-desktop-amd64.iso
-[AutoRestart]    Progresso: 87.32%
+[Runner] GeoIP: MMDBs detected -> geolocation ENABLED
+[Runner] 🚀 Starting TorrentMonitor with Auto-Restart
+[Runner]    Torrents folder: /home/usuario/.config/transmission/torrents
+[Runner]    Downloads folder: /home/usuario/Desktop/cursor/Torrent-Monitor/Downloads
+[Runner]    Collection interval: 10s
+
+[AutoRestart] 🔍 Progress monitor started
+[AutoRestart]    Progress threshold: 90.0%
+[AutoRestart]    Minimum speed: 1000 bytes/s
+[AutoRestart]    Check interval: 30s
+```
+
+### During Monitoring
+
+```
+[AutoRestart] 📊 Torrent status: ubuntu-22.04-desktop-amd64.iso
+[AutoRestart]    Progress: 87.32%
 [AutoRestart]    Download: 234.56 KB/s
-[AutoRestart]    Tamanho atual: 3245.67 MB
+[AutoRestart]    Current size: 3245.67 MB
 [AutoRestart]    Seeds: 45 | Peers: 123
 ```
 
-### Quando Atinge o Limite
+### When Threshold is Reached
 
 ```
-[AutoRestart] ⚠️  LIMITE ATINGIDO!
+[AutoRestart] ⚠️  THRESHOLD REACHED!
 [AutoRestart]    Torrent: ubuntu-22.04-desktop-amd64.iso
-[AutoRestart]    Progresso: 91.25%
-[AutoRestart]    Reinício #1
-[AutoRestart] 🔄 Reiniciando download...
+[AutoRestart]    Progress: 91.25%
+[AutoRestart]    Restart #1
+[AutoRestart] 🔄 Restarting download...
 
-[AutoRestart] 🗑️  Arquivo apagado: ubuntu-22.04-desktop-amd64.iso
-[AutoRestart] ✅ Pasta Downloads limpa com sucesso!
-[AutoRestart] ✅ Download reiniciado com sucesso!
+[AutoRestart] 🗑️  File deleted: ubuntu-22.04-desktop-amd64.iso
+[AutoRestart] ✅ Downloads folder cleaned successfully!
+[AutoRestart] ✅ Download restarted successfully!
 ```
 
-## 🛑 Parar o Script
+## 🛑 Stopping the Script
 
-### Manualmente
-Pressione `CTRL+C` para parar graciosamente.
+### Manually
+Press `CTRL+C` to stop gracefully.
 
-### Por Tempo
-O script para automaticamente após `DURATION` segundos.
+### By Time
+Script stops automatically after `DURATION` seconds.
 
-### Encontrar Processo em Background
+### Find Background Process
 ```bash
 ps aux | grep run_tracker_autorestart
 kill <PID>
 ```
 
-## 📁 Arquivos Gerados
+## 📁 Generated Files
 
-- `monitor_output.csv` - Dados de peers em CSV
-- `Monitor_test.db` - Banco SQLite (se não usar MariaDB)
-- Tabelas no MariaDB:
-  - `report_table` - Dados detalhados de peers
-  - `info_torrent` - Metadados dos torrents
-- `notified_peers.txt` - Cache de peers notificados
-- `autorestart.log` - Log de execução (se usar nohup)
+- `monitor_output.csv` - Peer data in CSV format
+- `Monitor_test.db` - SQLite database (if not using MariaDB)
+- MariaDB tables:
+  - `report_table` - Detailed peer data
+  - `info_torrent` - Torrent metadata
+- `autorestart.log` - Execution log (if using nohup)
 
-## ⚠️ Avisos Importantes
+## ⚠️ Important Warnings
 
-1. **Espaço em Disco**: Mesmo reiniciando, os downloads podem ocupar espaço temporariamente. Monitore o disco.
+1. **Disk Space**: Even with restarts, downloads can temporarily use space. Monitor disk usage.
 
-2. **Bandwidth**: O script continuará consumindo banda enquanto baixa. Configure `download_rate_limit` se necessário.
+2. **Bandwidth**: Script will continue consuming bandwidth while downloading. Configure `download_rate_limit` if needed.
 
-3. **Seeds**: Se não houver seeds, o download não iniciará e o script não reiniciará.
+3. **Seeds**: If no seeds available, download won't start and script won't restart.
 
-4. **MariaDB**: Certifique-se de que o servidor MariaDB está acessível nas configurações fornecidas.
+4. **MariaDB**: Ensure MariaDB server is accessible with provided configuration.
 
 ## 🔧 Troubleshooting
 
-### Erro: "No .torrent files"
-- Verifique se há arquivos `.torrent` em `TORRENT_DIR`
-- Ajuste o caminho `TORRENT_DIR` no script
+### Error: "No .torrent files"
+- Check if there are `.torrent` files in `TORRENT_DIR`
+- Adjust `TORRENT_DIR` path in the script
 
-### Erro: "GeoIP databases not found"
-- Baixe os databases GeoLite2 de MaxMind
-- Coloque em `dbs/GeoLite2-City_20250926/` e `dbs/GeoLite2-ASN_20250929/`
+### Error: "GeoIP databases not found"
+- Download GeoLite2 databases from MaxMind
+- Place in `dbs/GeoLite2-City_20250926/` and `dbs/GeoLite2-ASN_20250929/`
 
-### Não está reiniciando
-- Verifique se há seeds disponíveis (velocidade > 0)
-- Ajuste `MIN_DOWNLOAD_SPEED` para um valor menor
-- Verifique `PROGRESS_THRESHOLD` - talvez seja muito alto
+### Not restarting
+- Check if seeds are available (speed > 0)
+- Adjust `MIN_DOWNLOAD_SPEED` to a lower value
+- Check `PROGRESS_THRESHOLD` - might be too high
 
-### Downloads não são apagados
-- Verifique permissões da pasta `Downloads`
-- Verifique se `DOWNLOADS_PATH` está correto
+### Downloads not being deleted
+- Check `Downloads` folder permissions
+- Verify `DOWNLOADS_PATH` is correct
 
-## 🔍 Diferenças vs run_tracker_inproc.py
+## 🔍 Differences vs run_tracker_inproc.py
 
-| Característica | run_tracker_inproc.py | run_tracker_autorestart.py |
-|----------------|------------------------|----------------------------|
-| Auto-restart downloads | ❌ Não | ✅ Sim |
-| Monitoramento de progresso | ❌ Não | ✅ Sim |
-| Limpeza automática Downloads | ❌ Manual | ✅ Automático |
-| Verificação de download ativo | ❌ Não | ✅ Sim |
-| Estatísticas de progresso | ❌ Não | ✅ Sim |
-| Duração padrão | 120s (2 min) | 3600s (1 hora) |
+| Feature | run_tracker_inproc.py | run_tracker_autorestart.py |
+|---------|------------------------|----------------------------|
+| Auto-restart downloads | ❌ No | ✅ Yes |
+| Progress monitoring | ❌ No | ✅ Yes |
+| Automatic Downloads cleanup | ❌ Manual | ✅ Automatic |
+| Active download verification | ❌ No | ✅ Yes |
+| Progress statistics | ❌ No | ✅ Yes |
+| Default duration | 120s (2 min) | 3600s (1 hour) |
 
-## 📝 Exemplo de Uso Completo
+## 📝 Complete Usage Example
 
 ```bash
-# 1. Verificar torrents disponíveis
+# 1. Check available torrents
 ls -la /home/usuario/.config/transmission/torrents/
 
-# 2. Editar configurações se necessário
+# 2. Edit configuration if needed
 nano run_tracker_autorestart.py
 
-# 3. Executar o script
+# 3. Run the script
 python3 run_tracker_autorestart.py
 
-# 4. Monitorar logs em outro terminal
+# 4. Monitor logs in another terminal
 tail -f monitor_output.csv
 
-# 5. Consultar dados no MariaDB
+# 5. Query data in MariaDB
 mysql -h 192.168.10.52 -u admin -p torrent_monitor
 SELECT COUNT(*) FROM report_table;
 ```
 
-## 🎯 Casos de Uso
+## 🎯 Use Cases
 
-1. **Testes de Longa Duração**: Monitorar peers por horas/dias sem completar downloads
-2. **Análise de Swarms**: Observar como swarms evoluem ao longo do tempo
-3. **Detecção de Padrões**: Identificar horários de pico, regiões mais ativas
-4. **Economia de Espaço**: Não precisa armazenar arquivos completos
-5. **Simulação Realista**: Comportar-se como um peer real que está sempre baixando
+1. **Long-Duration Tests**: Monitor peers for hours/days without completing downloads
+2. **Swarm Analysis**: Observe how swarms evolve over time
+3. **Pattern Detection**: Identify peak times, most active regions
+4. **Space Savings**: No need to store complete files
+5. **Realistic Simulation**: Behave like a real peer that's always downloading
 
-## 📞 Suporte
+## 📞 Support
 
-Para problemas ou dúvidas:
-1. Verifique os logs com `FORCE_VERBOSE = True`
-2. Teste primeiro com `run_tracker_inproc.py` (mais simples)
-3. Verifique se todas as dependências estão instaladas
-4. Confirme que MariaDB está acessível
+For issues or questions:
+1. Check logs with `FORCE_VERBOSE = True`
+2. Test first with `run_tracker_inproc.py` (simpler)
+3. Verify all dependencies are installed
+4. Confirm MariaDB is accessible
 
 ---
 
-**Desenvolvido para manter monitoramento contínuo de swarms BitTorrent** 🚀
+**Developed to maintain continuous monitoring of BitTorrent swarms** 🚀
 

@@ -25,7 +25,9 @@ TorrentMonitor is an advanced Python-based tool designed to revolutionize the wa
 - **📁 Organized Database Structure**: All GeoLite2 databases now stored in `dbs/` directory
 - **🧪 Testing Suite**: Added comprehensive test scripts for geolocation and functionality
 - **🔄 In-Process Runner**: New `run_tracker_inproc.py` for easier testing and development
+- **🔁 Auto-Restart Runner**: New `run_tracker_autorestart.py` for continuous monitoring without completing downloads
 - **📊 Real-time Data Saving**: Database and CSV files are updated continuously during monitoring
+- **⚡ Progress Monitoring**: Automatic download restart when reaching threshold to maintain continuous monitoring
 
 ## Why TorrentMonitor?
 
@@ -133,6 +135,22 @@ The runner includes:
 - Configurable test duration
 - Verbose logging options
 
+### Method 3: Auto-Restart Runner (Recommended for Long-Term Monitoring)
+For continuous monitoring without completing downloads:
+
+```bash
+python3 run_tracker_autorestart.py
+```
+
+This runner automatically:
+- Monitors download progress in real-time
+- Restarts downloads when they reach 90% completion (configurable)
+- Cleans up Downloads folder automatically
+- Maintains monitoring active indefinitely
+- Prevents disk space issues from completed downloads
+
+See [AUTO_RESTART_README.md](AUTO_RESTART_README.md) for detailed documentation.
+
 ### Command-line Arguments
 
 | Argument               | Description                                                                 | Default              |
@@ -189,10 +207,17 @@ python3 test_simple.py
 python3 test_final.py
 ```
 
-### Test with Runner
+### Test with Basic Runner
 ```bash
 python3 run_tracker_inproc.py
 ```
+
+### Test with Auto-Restart Runner
+```bash
+python3 run_tracker_autorestart.py
+```
+
+For detailed information about the auto-restart feature, see [AUTO_RESTART_README.md](AUTO_RESTART_README.md).
 
 ## Telegram Integration
 

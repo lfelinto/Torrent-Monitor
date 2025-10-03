@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # run_tracker_autorestart.py
-# Runner que reinicia downloads automaticamente quando estiverem quase completos
-# Mantém o monitoramento ativo sem completar os downloads
+# Runner that automatically restarts downloads when almost complete
+# Keeps monitoring active without completing downloads
 
 import os
 import sys
@@ -14,23 +14,23 @@ from datetime import datetime
 import importlib.util
 
 # =========================
-# 🔧 CONFIGURAÇÕES
+# 🔧 CONFIGURATION
 # =========================
-TORRENT_DIR = Path("/home/usuario/.config/transmission/torrents/")  # Pasta com .torrent
-POLL_TIME_SECONDS = 10        # Intervalo de coleta (segundos)
-DURATION = 3600               # Tempo total de execução (1 hora)
-COUNTRY_FILTER = None         # ex.: "Spain" para filtrar/alertar; None = todos
-FORCE_VERBOSE = True          # Forçar logs DEBUG no monitor
-USE_TELEGRAM_STUB = True      # Ignorar login real e apenas "printar" mensagens
+TORRENT_DIR = Path("/home/usuario/.config/transmission/torrents/")  # .torrent files folder
+POLL_TIME_SECONDS = 10        # Data collection interval (seconds)
+DURATION = 3600               # Total execution time (1 hour, 0 = infinite)
+COUNTRY_FILTER = None         # e.g.: "Spain" to filter/alert; None = all countries
+FORCE_VERBOSE = True          # Force DEBUG logs in monitor
+USE_TELEGRAM_STUB = True      # Ignore real login and just print messages
 
-# Configurações de Auto-Restart
-PROGRESS_THRESHOLD = 0.90     # Limite de progresso (90%) para reiniciar
-CHECK_INTERVAL = 30           # Intervalo para verificar progresso (segundos)
-MIN_DOWNLOAD_SPEED = 1000     # Velocidade mínima (bytes/s) para considerar download ativo
-DOWNLOADS_PATH = Path.cwd() / "Downloads"  # Pasta de downloads
+# Auto-Restart Settings
+PROGRESS_THRESHOLD = 0.90     # Progress threshold (90%) to restart
+CHECK_INTERVAL = 30           # Interval to check progress (seconds)
+MIN_DOWNLOAD_SPEED = 1000     # Minimum speed (bytes/s) to consider download active
+DOWNLOADS_PATH = Path.cwd() / "Downloads"  # Downloads folder
 
 # =========================
-# 🧪 TELETHON STUB (para testar sem credenciais)
+# 🧪 TELETHON STUB (for testing without credentials)
 # =========================
 def _install_telethon_stub():
     import types
@@ -78,63 +78,63 @@ if USE_TELEGRAM_STUB:
     _install_telethon_stub()
 
 # =========================
-# 🧰 VERIFICAÇÕES BÁSICAS
+# 🧰 BASIC PRE-CHECKS
 # =========================
 CWD = Path.cwd()
 MAIN_PATH = CWD / "TorrentMonitor.py"
 if not MAIN_PATH.exists():
-    print(f"[ERROR] {MAIN_PATH} não encontrado.")
+    print(f"[ERROR] {MAIN_PATH} not found.")
     sys.exit(1)
 
 if not TORRENT_DIR.is_dir():
-    print(f"[ERROR] Diretório de torrents não existe: {TORRENT_DIR}")
+    print(f"[ERROR] Torrent directory does not exist: {TORRENT_DIR}")
     sys.exit(1)
 
 if not any(TORRENT_DIR.glob("*.torrent")):
-    print(f"[ERROR] Nenhum arquivo .torrent em {TORRENT_DIR}")
+    print(f"[ERROR] No .torrent files in {TORRENT_DIR}")
     sys.exit(1)
 
-# Verificar Geo databases
+# Check Geo databases
 city_mmdb = CWD / "dbs" / "GeoLite2-City_20250926" / "GeoLite2-City.mmdb"
 asn_mmdb = CWD / "dbs" / "GeoLite2-ASN_20250929" / "GeoLite2-ASN.mmdb"
 missing = [p for p in [city_mmdb, asn_mmdb] if not p.exists()]
 if missing:
-    print("[ERROR] Databases Geo não encontradas em dbs/")
-    print("       Verifique se os arquivos estão em:")
+    print("[ERROR] Geo databases not found in dbs/ folder")
+    print("       Check if files are in:")
     print("       - dbs/GeoLite2-City_20250926/GeoLite2-City.mmdb")
     print("       - dbs/GeoLite2-ASN_20250929/GeoLite2-ASN.mmdb")
     for m in missing:
-        print(f"       - faltando: {m}")
+        print(f"       - missing: {m}")
     sys.exit(1)
 else:
-    print("[Runner] GeoIP: MMDBs detectados -> geolocalização ATIVADA")
+    print("[Runner] GeoIP: MMDBs detected -> geolocation ENABLED")
 
-# Avisos de dependências
+# Dependency warnings (best-effort)
 for mod in ("libtorrent", "geoip2", "colorama", "requests", "telethon", "pymysql"):
     try:
         __import__(mod)
     except Exception:
-        print(f"[WARNING] Dependência Python faltando: {mod}  (instale com: pip install {mod})")
+        print(f"[WARNING] Missing Python dependency: {mod}  (install with: pip install {mod})")
 
 # =========================
-# 📥 IMPORTAÇÃO DINÂMICA DO MÓDULO
+# 📥 DYNAMIC MODULE IMPORT
 # =========================
 spec = importlib.util.spec_from_file_location("torrent_monitor_module", str(MAIN_PATH))
 tm = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tm)
 
 if not hasattr(tm, "TorrentTracker"):
-    print("[ERROR] Módulo não expôs a classe 'TorrentTracker'.")
+    print("[ERROR] Module did not expose 'TorrentTracker' class.")
     sys.exit(1)
 
 # =========================
-# 🔄 MONITOR DE PROGRESSO E AUTO-RESTART
+# 🔄 PROGRESS MONITOR AND AUTO-RESTART
 # =========================
 monitor_instance = None
 stop_monitoring = False
 
 def clean_downloads_folder():
-    """Limpa a pasta Downloads para reiniciar os downloads"""
+    """Cleans Downloads folder to restart downloads"""
     try:
         if DOWNLOADS_PATH.exists():
             for item in DOWNLOADS_PATH.iterdir():
@@ -151,7 +151,7 @@ def clean_downloads_folder():
         return False
 
 def get_folder_size(path):
-    """Calcula o tamanho total da pasta em bytes"""
+    """Calculates total folder size in bytes"""
     total = 0
     try:
         for entry in path.iterdir():
@@ -164,13 +164,13 @@ def get_folder_size(path):
     return total
 
 def monitor_progress_and_restart():
-    """Thread que monitora o progresso dos downloads e reinicia quando necessário"""
+    """Thread that monitors download progress and restarts when necessary"""
     global monitor_instance, stop_monitoring
     
-    print(f"\n[AutoRestart] 🔍 Monitor de progresso iniciado")
-    print(f"[AutoRestart]    Limite de progresso: {PROGRESS_THRESHOLD * 100}%")
-    print(f"[AutoRestart]    Velocidade mínima: {MIN_DOWNLOAD_SPEED} bytes/s")
-    print(f"[AutoRestart]    Intervalo de verificação: {CHECK_INTERVAL}s\n")
+    print(f"\n[AutoRestart] 🔍 Progress monitor started")
+    print(f"[AutoRestart]    Progress threshold: {PROGRESS_THRESHOLD * 100}%")
+    print(f"[AutoRestart]    Minimum speed: {MIN_DOWNLOAD_SPEED} bytes/s")
+    print(f"[AutoRestart]    Check interval: {CHECK_INTERVAL}s\n")
     
     last_download_size = 0
     restart_count = 0
@@ -182,12 +182,12 @@ def monitor_progress_and_restart():
             if monitor_instance is None or not hasattr(monitor_instance, 'session'):
                 continue
             
-            # Verificar se há handles ativos
+            # Check for active handles
             handles = getattr(monitor_instance, 'handles', [])
             if not handles:
                 continue
             
-            # Verificar cada torrent
+            # Check each torrent
             for handle in handles:
                 try:
                     status = handle.status()
@@ -195,62 +195,62 @@ def monitor_progress_and_restart():
                     download_rate = status.download_rate
                     name = status.name
                     
-                    # Verificar tamanho da pasta Downloads
+                    # Check Downloads folder size
                     current_size = get_folder_size(DOWNLOADS_PATH)
                     is_downloading = download_rate > MIN_DOWNLOAD_SPEED or current_size > last_download_size
                     
-                    # Log de status
+                    # Status logging
                     if is_downloading:
-                        print(f"\n[AutoRestart] 📊 Status do torrent: {name}")
-                        print(f"[AutoRestart]    Progresso: {progress * 100:.2f}%")
+                        print(f"\n[AutoRestart] 📊 Torrent status: {name}")
+                        print(f"[AutoRestart]    Progress: {progress * 100:.2f}%")
                         print(f"[AutoRestart]    Download: {download_rate / 1024:.2f} KB/s")
-                        print(f"[AutoRestart]    Tamanho atual: {current_size / (1024*1024):.2f} MB")
+                        print(f"[AutoRestart]    Current size: {current_size / (1024*1024):.2f} MB")
                         print(f"[AutoRestart]    Seeds: {status.num_seeds} | Peers: {status.num_peers}")
                     
-                    # Verificar se precisa reiniciar
+                    # Check if restart is needed
                     if progress >= PROGRESS_THRESHOLD and is_downloading:
                         restart_count += 1
-                        print(f"\n[AutoRestart] ⚠️  LIMITE ATINGIDO!")
+                        print(f"\n[AutoRestart] ⚠️  THRESHOLD REACHED!")
                         print(f"[AutoRestart]    Torrent: {name}")
-                        print(f"[AutoRestart]    Progresso: {progress * 100:.2f}%")
-                        print(f"[AutoRestart]    Reinício #{restart_count}")
-                        print(f"[AutoRestart] 🔄 Reiniciando download...\n")
+                        print(f"[AutoRestart]    Progress: {progress * 100:.2f}%")
+                        print(f"[AutoRestart]    Restart #{restart_count}")
+                        print(f"[AutoRestart] 🔄 Restarting download...\n")
                         
-                        # Pausar o torrent
+                        # Pause the torrent
                         handle.pause()
                         time.sleep(2)
                         
-                        # Limpar pasta Downloads
+                        # Clean Downloads folder
                         if clean_downloads_folder():
-                            # Retomar o torrent (reiniciará do zero)
+                            # Resume torrent (will restart from zero)
                             time.sleep(1)
                             handle.resume()
-                            print(f"[AutoRestart] ✅ Download reiniciado com sucesso!\n")
+                            print(f"[AutoRestart] ✅ Download restarted successfully!\n")
                             last_download_size = 0
                         else:
-                            # Se falhou a limpeza, tentar retomar mesmo assim
+                            # If cleanup failed, try to resume anyway
                             handle.resume()
                     
                     last_download_size = current_size
                     
                 except Exception as e:
-                    print(f"[AutoRestart] ⚠️  Erro ao verificar handle: {e}")
+                    print(f"[AutoRestart] ⚠️  Error checking handle: {e}")
                     continue
                     
         except Exception as e:
-            print(f"[AutoRestart] ❌ Erro no monitor: {e}")
+            print(f"[AutoRestart] ❌ Monitor error: {e}")
             continue
     
-    print(f"\n[AutoRestart] 🛑 Monitor de progresso finalizado")
-    print(f"[AutoRestart]    Total de reinícios: {restart_count}")
+    print(f"\n[AutoRestart] 🛑 Progress monitor stopped")
+    print(f"[AutoRestart]    Total restarts: {restart_count}")
 
 # =========================
-# 🧵 TIMER PARA FINALIZAÇÃO GRACIOSA
+# 🧵 TIMER FOR GRACEFUL FINISH
 # =========================
 def _graceful_stop_after(duration: int):
     global stop_monitoring
     time.sleep(duration)
-    print("\n[Runner] ⏰ Tempo de teste atingido. Enviando SIGINT para finalizar graciosamente...")
+    print("\n[Runner] ⏰ Test time reached. Sending SIGINT to finish gracefully...")
     stop_monitoring = True
     time.sleep(2)
     os.kill(os.getpid(), signal.SIGINT)
@@ -259,15 +259,15 @@ stopper = None
 if DURATION and DURATION > 0:
     stopper = threading.Thread(target=_graceful_stop_after, args=(DURATION,), daemon=True)
     stopper.start()
-    print(f"[Runner] ⏱️  Executando por ~{DURATION}s ({DURATION//60} minutos); pressione CTRL+C para parar antes.")
+    print(f"[Runner] ⏱️  Running for ~{DURATION}s ({DURATION//60} minutes); press CTRL+C to stop early.")
 
 # =========================
-# ▶️ EXECUÇÃO IN-PROCESS
+# ▶️ IN-PROCESS EXECUTION
 # =========================
-print(f"\n[Runner] 🚀 Iniciando TorrentMonitor com Auto-Restart")
-print(f"[Runner]    Pasta de torrents: {TORRENT_DIR}")
-print(f"[Runner]    Pasta de downloads: {DOWNLOADS_PATH}")
-print(f"[Runner]    Intervalo de coleta: {POLL_TIME_SECONDS}s")
+print(f"\n[Runner] 🚀 Starting TorrentMonitor with Auto-Restart")
+print(f"[Runner]    Torrents folder: {TORRENT_DIR}")
+print(f"[Runner]    Downloads folder: {DOWNLOADS_PATH}")
+print(f"[Runner]    Collection interval: {POLL_TIME_SECONDS}s")
 
 monitor = tm.TorrentTracker(
     torrent_folder=str(TORRENT_DIR),
@@ -276,7 +276,7 @@ monitor = tm.TorrentTracker(
     database="Monitor_test.db",
     country=COUNTRY_FILTER,
     time_interval=POLL_TIME_SECONDS,
-    # Configurações do MariaDB
+    # MariaDB configuration
     db_host='192.168.10.52',
     db_port=3306,
     db_user='admin',
@@ -286,28 +286,28 @@ monitor = tm.TorrentTracker(
 
 monitor_instance = monitor
 
-# Forçar alta verbosidade se desejado
+# Force high verbosity if desired
 if FORCE_VERBOSE and hasattr(monitor, "logger"):
     import logging
     monitor.logger.setLevel(logging.DEBUG)
 
-# Iniciar thread de monitoramento de progresso
+# Start progress monitoring thread
 progress_thread = threading.Thread(target=monitor_progress_and_restart, daemon=True)
 progress_thread.start()
 
 try:
     monitor.main()
 except KeyboardInterrupt:
-    print("\n[Runner] 🛑 Parado por usuário/tempo (KeyboardInterrupt).")
+    print("\n[Runner] 🛑 Stopped by user/time (KeyboardInterrupt).")
     stop_monitoring = True
 except Exception as e:
-    print(f"[Runner] ❌ Erro inesperado: {e}")
+    print(f"[Runner] ❌ Unexpected error: {e}")
     import traceback
     traceback.print_exc()
     stop_monitoring = True
 
-# Aguardar thread de monitoramento finalizar
+# Wait for monitoring thread to finish
 time.sleep(2)
 
-print("\n[Runner] ✅ Finalizado.")
+print("\n[Runner] ✅ Finished.")
 
